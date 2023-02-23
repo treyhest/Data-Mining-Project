@@ -1,11 +1,37 @@
 import cassiopeia as cass
+import sqlalchemy
+import json
 
 # Cassiopeia is a Python library for interacting with the Riot Games API.
 # Here is a link to the documentation.
 # https://cassiopeia.readthedocs.io/en/latest/
 
 cass.apply_settings("config.json")
+with open("dbinfo.json", "r") as read_file:
+    info = json.load(read_file)
+    username = info["username"]
+    password = info["password"]
+    host = info["host"]
+    port = info["port"]
+    database = info["database"]
 
+print(sqlalchemy.__version__)
+
+
+def get_connection():
+
+    url_object = sqlalchemy.URL.create(
+        "mysql+pymysql",
+        username=username,
+        password=password,
+        host=host,
+        port=port,
+        database=database,
+    )
+    return sqlalchemy.create_engine(url_object)
+
+
+engine = get_connection()
 player = cass.Summoner(name="EvahnJM", region="NA")
 good_with = player.champion_masteries.filter(lambda cm: cm.level >= 6)
 print([cm.champion.name for cm in good_with])

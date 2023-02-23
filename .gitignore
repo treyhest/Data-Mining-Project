@@ -130,3 +130,6 @@ dmypy.json
 
 # Cass config file
 config.json
+
+# Database info file
+db_info.json
