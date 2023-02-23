@@ -1,0 +1,20 @@
+
+{
+    "global": {
+        "version_from_match": "patch"
+    },
+    "plugins": {}, 
+    "pipeline": {
+        "Cache": {}, 
+        "DDragon": {}, 
+        "RiotAPI": {
+            "api_key": "<YOUR KEY HERE>"
+        }
+    }, 
+    "logging": {
+        "print_calls": "True", 
+        "print_riot_api_key": "False", 
+        "default": "WARNING", 
+        "core": "WARNING"
+    }
+}
