@@ -8,7 +8,7 @@
         "Cache": {}, 
         "DDragon": {}, 
         "RiotAPI": {
-            "api_key": "<YOUR KEY HERE>"
+            "api_key": "Your Key Here"
         }
     }, 
     "logging": {
