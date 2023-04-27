@@ -1,23 +1,12 @@
 import cassiopeia as cass
 import sqlalchemy
+from sqlalchemy import Table, Column, Integer, String, MetaData, ForeignKey
 import json
 import pandas as pd
 
 # Cassiopeia is a Python library for interacting with the Riot Games API.
 # Here is a link to the documentation.
 # https://cassiopeia.readthedocs.io/en/latest/
-
-cass.apply_settings("config.json")  # You will need to set this up individually
-
-with open("dbinfo.json", "r") as read_file:
-    info = json.load(read_file)
-    username = info["username"]
-    password = info["password"]
-    host = info["host"]
-    port = info["port"]
-    database = info["database"]
-
-print(sqlalchemy.__version__)
 
 
 def get_connection():
@@ -30,10 +19,7 @@ def get_connection():
         port=port,
         database=database,
     )
-    return sqlalchemy.create_engine(url_object)
-
-
-engine = get_connection()
+    return sqlalchemy.create_engine(url_object, echo=True)
 
 
 def match_crawler(seed_player_name: str, limit: int, region: str, step=1):
@@ -64,6 +50,11 @@ def match_crawler(seed_player_name: str, limit: int, region: str, step=1):
             entries += 1
             print(entries)
         current_id -= step
+    s = games.select()
+    conn = engine.connect()
+    result = conn.execute(s)
+    for row in result:
+        print(row)
     gamesdf.to_excel('FinalData.xlsx')
 
 
@@ -87,8 +78,12 @@ def match_logger(match: cass.Match, entries: int):
             'firstBlood': [bloodwinner],
             'firstInhibitor': [inhibwinner]
         })
-        # if entries < 1000:
-        #     return
+        if entries < 1000:
+            ins = games.insert().values(result=gamewinner, queue='CLASSIC', region='NA', dragonSoul='Cloud',
+                                        firstDragon=dragonwinner, firstTower=towerwinner, firstBlood=bloodwinner,
+                                        firstInhibitor=inhibwinner)
+            conn = engine.connect()
+            conn.execute(ins)
         return matchdf
 
     # These are some random match stats for example use.
@@ -108,5 +103,45 @@ def is_match_valid(match: cass.Match):
     finally:
         return is_valid
 
+
+cass.apply_settings("config.json")  # You will need to set this up individually
+
+with open("dbinfo.json", "r") as read_file:
+    info = json.load(read_file)
+    username = info["username"]
+    password = info["password"]
+    host = info["host"]
+    port = info["port"]
+    database = info["database"]
+
+engine = get_connection()
+meta = MetaData()
+
+games = Table(
+    'games', meta,
+    Column('matchId', Integer, primary_key=True),
+    Column('result', String(4)),
+    Column('queue', String(8)),
+    Column('region', String(20)),
+    Column('dragonSoul', String(10)),
+    Column('firstDragon', String(4)),
+    Column('firstTower', String(4)),
+    Column('firstBlood', String(4)),
+    Column('firstInhibitor', String(4))
+)
+
+players = Table(
+    'players', meta,
+    Column('playerId', Integer, primary_key=True),
+    Column('matchId', Integer, ForeignKey("games.matchId")),
+    Column('champion', String(20)),
+    Column('role', String(7)),
+    Column('spells', String(255)),
+    Column('kills', Integer),
+    Column('deaths', Integer),
+    Column('assists', Integer)
+)
+
+meta.create_all(engine)
 
 match_crawler(seed_player_name="treyhest", limit=5, region="NA")
