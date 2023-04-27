@@ -1,8 +1,9 @@
 import cassiopeia as cass
 import sqlalchemy
-from sqlalchemy import Table, Column, Integer, String, MetaData, ForeignKey
+from sqlalchemy import Table, Column, Integer, String, MetaData, ForeignKey, insert
 import json
 import pandas as pd
+
 
 # Cassiopeia is a Python library for interacting with the Riot Games API.
 # Here is a link to the documentation.
@@ -10,7 +11,6 @@ import pandas as pd
 
 
 def get_connection():
-
     url_object = sqlalchemy.URL.create(
         "mysql+pymysql",
         username=username,
@@ -19,12 +19,12 @@ def get_connection():
         port=port,
         database=database,
     )
-    return sqlalchemy.create_engine(url_object, echo=True)
+    return sqlalchemy.create_engine(url_object)
 
 
 def match_crawler(seed_player_name: str, limit: int, region: str, step=1):
     # The thought process is, with the correct players that play daily (like streamers), we can assuredly get seed
-    # IDs that are relatively recent This is NOT future proof.
+    # IDs that are relatively recent This is NOT future-proof.
     """
     (Naively) Crawls through matches by match ID sequentially, from the seed_player's first match, decrementing
     through earlier matches at a given step, (default is 1).
@@ -50,11 +50,6 @@ def match_crawler(seed_player_name: str, limit: int, region: str, step=1):
             entries += 1
             print(entries)
         current_id -= step
-    s = games.select()
-    conn = engine.connect()
-    result = conn.execute(s)
-    for row in result:
-        print(row)
     gamesdf.to_excel('FinalData.xlsx')
 
 
@@ -79,11 +74,12 @@ def match_logger(match: cass.Match, entries: int):
             'firstInhibitor': [inhibwinner]
         })
         if entries < 1000:
-            ins = games.insert().values(result=gamewinner, queue='CLASSIC', region='NA', dragonSoul='Cloud',
-                                        firstDragon=dragonwinner, firstTower=towerwinner, firstBlood=bloodwinner,
-                                        firstInhibitor=inhibwinner)
-            conn = engine.connect()
-            conn.execute(ins)
+            ins = insert(games).values(result=gamewinner, queue='CLASSIC', region='NA', dragonSoul='Cloud',
+                                       firstDragon=dragonwinner, firstTower=towerwinner, firstBlood=bloodwinner,
+                                       firstInhibitor=inhibwinner)
+            with engine.connect() as conn:
+                conn.execute(ins)
+                conn.commit()
         return matchdf
 
     # These are some random match stats for example use.
