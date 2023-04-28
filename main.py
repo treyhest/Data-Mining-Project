@@ -1,9 +1,9 @@
 import cassiopeia as cass
 import sqlalchemy
-from sqlalchemy import Table, Column, Integer, String, MetaData, ForeignKey, insert
+from sqlalchemy import Table, Column, Integer, String, Float, MetaData, ForeignKey, insert
 import json
 import pandas as pd
-import matplotlib.pyplot
+#import matplotlib.pyplot
 
 
 # Cassiopeia is a Python library for interacting with the Riot Games API.
@@ -51,7 +51,7 @@ def match_crawler(seed_player_name: str, limit: int, region: str, step=1):
             entries += 1
             print(entries)
         current_id -= step
-    gamesdf.to_excel('FinalData.xlsx')
+    #gamesdf.to_excel('FinalData.xlsx')
 
 
 def match_logger(match: cass.Match, entries: int):
@@ -77,10 +77,22 @@ def match_logger(match: cass.Match, entries: int):
             'firstInhibitor': [inhibwinner]
         })
         if entries < 1000:
-            ins = insert(games).values(result=gamewinner, queue='CLASSIC', region=gameregion, dragonSoul='Cloud',
+            ins = insert(games).values(match_id=str(match.id), result=gamewinner, queue='CLASSIC', region=gameregion, dragonSoul='Cloud',
                                        firstDragon=dragonwinner, firstTower=towerwinner, firstBlood=bloodwinner,
                                        firstInhibitor=inhibwinner)
             SQLScriptExc(ins)
+            match_seconds = match.duration.seconds
+            for participant in match.participants:
+                ins = insert(players).values(match_id=str(match.id), champion_name=participant.champion.name, side=participant.team.side.name, 
+                                             kills=participant.stats.kills, deaths=participant.stats.deaths, assists=participant.stats.assists, kda=participant.stats.kda,
+                                             objective_damage=participant.stats.damage_dealt_to_objectives,
+                                             gold_ps=participant.stats.gold_earned/match_seconds, creep_score_pm=(participant.stats.neutral_minions_killed + participant.stats.total_minions_killed)/(match_seconds/60),
+                                             damage_dealt_ps=participant.stats.total_damage_dealt/match_seconds, damage_taken_ps=participant.stats.total_damage_taken/match_seconds, healing_ps=participant.stats.total_heal/match_seconds,
+                                             vision_bought=participant.stats.vision_wards_bought, vision_placed=participant.stats.wards_placed, vision_destroyed=participant.stats.wards_killed, vision_score_pm=participant.stats.vision_score/(match_seconds/60),
+                                             seconds_dead=participant.stats.total_time_spent_dead
+                                             )
+                SQLScriptExc(ins)
+
         return matchdf
 
     # These are some random match stats for example use.
@@ -122,7 +134,8 @@ meta = MetaData()
 
 games = Table(
     'games', meta,
-    Column('matchId', Integer, primary_key=True),
+    Column('index', Integer, primary_key=True),
+    Column('match_id', String(20), unique=True),
     Column('result', String(4)),
     Column('queue', String(8)),
     Column('region', String(20)),
@@ -136,13 +149,24 @@ games = Table(
 players = Table(
     'players', meta,
     Column('playerId', Integer, primary_key=True),
-    Column('matchId', Integer, ForeignKey("games.matchId")),
-    Column('champion', String(20)),
-    Column('role', String(7)),
-    Column('spells', String(255)),
+    Column('match_id', String(20)), # Note, could not get Foreign keys to work (temporary)
+    Column('champion_name', String(20)),
+    Column('side', String(4)),
     Column('kills', Integer),
     Column('deaths', Integer),
-    Column('assists', Integer)
+    Column('assists', Integer),
+    Column('kda', Float),
+    Column('objective_damage', Integer),
+    Column('gold_ps', Float),
+    Column('creep_score_pm', Float),
+    Column('damage_dealt_ps', Float),
+    Column('damage_taken_ps', Float),
+    Column('healing_ps', Float),
+    Column('vision_bought', Integer),
+    Column('vision_placed', Integer),
+    Column('vision_destroyed', Integer),
+    Column('vision_score_pm', Float),
+    Column('seconds_dead', Integer)
 )
 
 meta.create_all(engine)
