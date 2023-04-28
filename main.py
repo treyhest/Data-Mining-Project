@@ -3,6 +3,7 @@ import sqlalchemy
 from sqlalchemy import Table, Column, Integer, String, MetaData, ForeignKey, insert
 import json
 import pandas as pd
+import matplotlib.pyplot
 
 
 # Cassiopeia is a Python library for interacting with the Riot Games API.
@@ -58,6 +59,8 @@ def match_logger(match: cass.Match, entries: int):
     red = 'Red'
     blue = 'Blue'
     if entries < 100000:
+        gameregion = match.region.value
+        gamequeue = match.queue.name
         gamewinner = blue if match.blue_team.win else red
         dragonwinner = blue if match.blue_team.first_dragon else red
         towerwinner = blue if match.blue_team.first_tower else red
@@ -65,8 +68,8 @@ def match_logger(match: cass.Match, entries: int):
         inhibwinner = blue if match.blue_team.first_inhibitor else red
         matchdf = pd.DataFrame({
             'Result': [gamewinner],
-            'queue': ['CLASSIC'],
-            'region': ['NA'],
+            'queue': [gamequeue],
+            'region': [gameregion],
             'dragonSoul': ['cloud'],
             'firstDragon': [dragonwinner],
             'firstTower': [towerwinner],
@@ -74,16 +77,20 @@ def match_logger(match: cass.Match, entries: int):
             'firstInhibitor': [inhibwinner]
         })
         if entries < 1000:
-            ins = insert(games).values(result=gamewinner, queue='CLASSIC', region='NA', dragonSoul='Cloud',
+            ins = insert(games).values(result=gamewinner, queue='CLASSIC', region=gameregion, dragonSoul='Cloud',
                                        firstDragon=dragonwinner, firstTower=towerwinner, firstBlood=bloodwinner,
                                        firstInhibitor=inhibwinner)
-            with engine.connect() as conn:
-                conn.execute(ins)
-                conn.commit()
+            SQLScriptExc(ins)
         return matchdf
 
     # These are some random match stats for example use.
     # print([participant.champion.name for participant in match.participants])
+
+
+def SQLScriptExc(script):
+    with engine.connect() as conn:
+        conn.execute(script)
+        conn.commit()
 
 
 def is_match_valid(match: cass.Match):
